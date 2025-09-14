@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Flores para Johanna</title>
+<link href="https://fonts.googleapis.com/css2?family=Pacifico&family=Poppins:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --gold:#FFD700; --bg1:#0b132b; --bg2:#1c2541; --bg3:#3a506b;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; height:100vh; overflow:hidden; color:#fff; text-align:center;
+    font-family:'Poppins',sans-serif;
+    background:linear-gradient(270deg,var(--bg1),var(--bg2),var(--bg3));
+    background-size:600% 600%; animation:bgShift 15s ease infinite;
+  }
+  @keyframes bgShift{0%{background-position:0 50%}50%{background-position:100% 50%}100%{background-position:0 50%}}
+
+  /* Estrellas */
+  .star{position:fixed; background:#fff; border-radius:50%; opacity:.6; pointer-events:none;
+        animation:twinkle 2s infinite alternate}
+  @keyframes twinkle{from{opacity:.3; transform:scale(.8)} to{opacity:1; transform:scale(1.2)}}
+
+  /* Vistas */
+  .view{position:absolute; inset:0; display:flex; flex-direction:column; justify-content:center; align-items:center;
+        padding:24px; transition:opacity .7s ease, transform .7s ease; }
+  .hide{opacity:0; pointer-events:none; transform:translateY(10px)}
+  .show{opacity:1; transform:translateY(0)}
+
+  /* Portada */
+  .greetings span{
+    display:block; font-size:clamp(36px,7vw,86px); font-weight:700; color:var(--gold);
+    font-family:'Pacifico',cursive; text-shadow:0 0 15px rgba(255,215,0,.8);
+    animation:fadeIn 1.2s ease forwards;
+  }
+  .description{margin-top:10px}
+  .description span{
+    display:block; font-size:clamp(16px,2.4vw,26px); opacity:0; animation:fadeIn 1.2s ease forwards;
+  }
+  .description:nth-of-type(1) span{animation-delay:.8s}
+  .description:nth-of-type(2) span{animation-delay:1.4s}
+  @keyframes fadeIn{from{opacity:0; transform:translateY(14px)} to{opacity:1; transform:translateY(0)}}
+
+  .boton{
+    margin-top:28px; padding:.9rem 2rem; border-radius:30px; border:none; cursor:pointer;
+    font-size:clamp(16px,2.4vw,20px); font-weight:700; color:#0b132b; background:var(--gold);
+    box-shadow:0 0 15px rgba(255,215,0,.6); animation:pulse 1.6s infinite; transition:transform .2s ease;
+  }
+  .boton:hover{transform:scale(1.06)}
+  @keyframes pulse{0%{box-shadow:0 0 5px var(--gold)}50%{box-shadow:0 0 20px var(--gold)}100%{box-shadow:0 0 5px var(--gold)}}
+
+  /* Lienzo */
+  #wrapCanvas{display:flex; justify-content:center; align-items:center; padding:16px}
+  canvas{max-width:min(960px,98vw); width:960px; height:620px; border-radius:16px;
+         box-shadow:0 10px 40px rgba(0,0,0,.35)}
+  .hint{position:absolute; bottom:10px; left:0; right:0; font-size:12px; opacity:.7}
+</style>
+</head>
+<body>
+<!-- Estrellas -->
+<script>
+  for(let i=0;i<40;i++){
+    const s=document.createElement('div'); s.className='star';
+    const size=Math.random()*3+1; s.style.width=s.style.height=size+'px';
+    s.style.top=Math.random()*100+'%'; s.style.left=Math.random()*100+'%';
+    s.style.animationDuration=(1.5+Math.random()*2)+'s'; document.body.appendChild(s);
+  }
+</script>
+
+<!-- VISTA 1: PORTADA -->
+<section id="intro" class="view show">
+  <div class="greetings">
+    <span>Hola</span>
+    <span>Johanna!</span>
+  </div>
+  <div class="description"><span>Este detalle es para ti, espero que te guste :)</span></div>
+  <div class="description"><span>Cuando quieras, podrás regresar aquí.</span></div>
+  <button class="boton" id="verFlores">HAZ CLICK AQUÍ</button>
+  <div class="hint">Todo en un solo archivo · sin cambiar de página</div>
+</section>
+
+<!-- VISTA 2: FLORES -->
+<section id="flowersView" class="view hide">
+  <div id="wrapCanvas"><canvas id="c" width="960" height="620"></canvas></div>
+  <button class="boton" id="volver">Volver</button>
+</section>
+
+<script>
+  // Navegación entre vistas (sin salir de la página)
+  const intro = document.getElementById('intro');
+  const flowersView = document.getElementById('flowersView');
+  document.getElementById('verFlores').onclick = () => {
+    intro.classList.add('hide'); intro.classList.remove('show');
+    flowersView.classList.add('show'); flowersView.classList.remove('hide');
+    startFlowers(); // inicializa la animación al entrar
+  };
+  document.getElementById('volver').onclick = () => {
+    flowersView.classList.add('hide'); flowersView.classList.remove('show');
+    intro.classList.add('show'); intro.classList.remove('hide');
+  };
+
+  // ---- DIBUJO DE FLORES (canvas) ----
+  let started=false;
+  function startFlowers(){
+    if(started) return; started=true;
+
+    const canvas=document.getElementById('c');
+    const ctx=canvas.getContext('2d');
+
+    function rnd(a,b){return a+Math.random()*(b-a)}
+
+    class Flower{
+      constructor(x,y,r,petals){
+        this.x=x; this.y=y; this.r=r; this.petals=petals;
+        this.phase=Math.random()*Math.PI*2;
+        this.h=rnd(140,220);
+        this.leafAngle=rnd(0.2,0.6);
+        this.rot=rnd(0,Math.PI*2);
+        this.rotSpeed=rnd(-0.002,0.002);
+      }
+      drawStem(t){
+        const len=this.h;
+        const sway=Math.sin(t*0.0015+this.phase)*20;
+        const x0=this.x,y0=this.y;
+        const x1=this.x+sway*0.4,y1=this.y+len*0.45;
+        const x2=this.x+sway,     y2=this.y+len;
+
+        ctx.lineWidth=Math.max(2,this.r*0.06);
+        ctx.strokeStyle="#2E8B57"; ctx.fillStyle="#2E8B57";
+        ctx.beginPath(); ctx.moveTo(x0,y0);
+        ctx.quadraticCurveTo(x1,y1,x2,y2); ctx.stroke();
+
+        this.leaf(x0+(x1-x0)*0.5,  y0+(y1-y0)*0.5,  this.r*0.55,  1,  t, 1);
+        this.leaf(x0+(x1-x0)*0.75, y0+(y1-y0)*0.75, this.r*0.48, -1,  t,-1);
+      }
+      leaf(cx,cy,size,side,t,dir){
+        const a=this.leafAngle*side+Math.sin(t*0.002+this.phase)*0.08*dir;
+        ctx.save(); ctx.translate(cx,cy); ctx.rotate(a);
+        const w=size*0.25,h=size*0.6;
+        const g=ctx.createLinearGradient(-w,0,w,0);
+        g.addColorStop(0,"#2E8B57"); g.addColorStop(1,"#4CAF50");
+        ctx.fillStyle=g; ctx.beginPath(); ctx.ellipse(0,0,w,h,0,0,Math.PI*2); ctx.fill(); ctx.restore();
+      }
+      petalsDraw(t){
+        ctx.save(); ctx.translate(this.x,this.y);
+        const swayRot=Math.sin(t*0.0015+this.phase)*0.05;
+        ctx.rotate(this.rot+swayRot);
+        for(let i=0;i<this.petals;i++){
+          const angle=i*(Math.PI*2/this.petals);
+          ctx.save(); ctx.rotate(angle);
+          const pr=this.r, w=pr*0.30, h=pr*1.05;
+          const grad=ctx.createLinearGradient(0,-h,0,h*0.2);
+          grad.addColorStop(0,"#FFE36A"); grad.addColorStop(0.6,"#FFD000"); grad.addColorStop(1,"#E5B800");
+          ctx.fillStyle=grad;
+          ctx.shadowColor="rgba(255,208,0,0.75)";
+          ctx.shadowBlur=16+Math.sin(t*0.004+this.phase)*4;
+          ctx.beginPath(); ctx.ellipse(0,-pr*0.25,w,h,0,0,Math.PI*2); ctx.fill();
+          ctx.shadowBlur=0; ctx.lineWidth=pr*0.02; ctx.strokeStyle="rgba(190,140,0,0.25)"; ctx.stroke();
+          ctx.restore();
+        }
+        ctx.restore();
+      }
+      center(t){
+        ctx.save(); ctx.translate(this.x,this.y);
+        const rr=this.r*0.32;
+        const g=ctx.createRadialGradient(0,0,rr*0.2,0,0,rr);
+        g.addColorStop(0,"#FFB000"); g.addColorStop(0.7,"#FF9A00"); g.addColorStop(1,"#C76A00");
+        ctx.fillStyle=g; ctx.shadowColor="rgba(255,180,0,0.6)";
+        ctx.shadowBlur=10+Math.sin(t*0.004+this.phase)*3;
+        ctx.beginPath(); ctx.arc(0,0,rr,0,Math.PI*2); ctx.fill(); ctx.restore();
+      }
+      draw(t){ this.drawStem(t); this.petalsDraw(t); this.center(t); this.rot+=this.rotSpeed; }
+    }
+
+    const flowers=[
+      new Flower(210,170,90,18),
+      new Flower(520,130,120,20),
+      new Flower(420,320,75,14),
+      new Flower(780,220,70,12)
+    ];
+
+    const lines=[
+      "Estas flores amarillas son un reflejo de la alegría",
+      "que traes a mi vida. Gracias por iluminar mis días con tu presencia."
+    ];
+
+    function bg(){
+      const g=ctx.createRadialGradient(canvas.width*0.5, canvas.height*0.45, 80,
+                                       canvas.width*0.5, canvas.height*0.5, canvas.width*0.85);
+      g.addColorStop(0,"#0b132b"); g.addColorStop(1,"#040816");
+      ctx.fillStyle=g; ctx.fillRect(0,0,canvas.width,canvas.height);
+    }
+    function drawText(t){
+      const baseY=canvas.height-28;
+      ctx.textAlign="center"; ctx.font="bold 22px Poppins, Arial";
+      ctx.shadowColor="#FFD000"; ctx.shadowBlur=10; ctx.fillStyle="#FFD000";
+      const amp=4, speed=0.004;
+      lines.forEach((line,li)=>{
+        const y=baseY-(lines.length-1-li)*28;
+        const words=line.split(" ");
+        const widths=words.map(w=>ctx.measureText(w+" ").width);
+        let x=canvas.width/2 - widths.reduce((a,b)=>a+b,0)/2;
+        words.forEach((w,i)=>{
+          const wy=y + Math.sin(t*speed+(i+li)*0.6)*amp;
+          const mid=ctx.measureText(w).width/2;
+          ctx.fillText(w,x+mid,wy);
+          x+=ctx.measureText(w+" ").width;
+        });
+      });
+      ctx.shadowBlur=0;
+    }
+    function loop(t){
+      bg(); flowers.forEach(f=>f.draw(t)); drawText(t); requestAnimationFrame(loop);
+    }
+    requestAnimationFrame(loop);
+
+    // Clic para agregar flores
+    canvas.addEventListener('click', e=>{
+      const r=canvas.getBoundingClientRect();
+      const x=e.clientX-r.left, y=e.clientY-r.top;
+      flowers.push(new Flower(x,y,rnd(60,120),Math.floor(rnd(12,22))));
+    });
+  }
+</script>
+</body>
+</html>
